@@ -1,0 +1,23 @@
+Tema: "back"
+
+O que back pode significar:
+- Viagem no tempo?
+- Puzzle que tenha que ficar indo e voltando
+- Costas
+- História contada de trás pra frente
+
+O que eu gostaria de fazer:
+- Roguelike
+- História legal
+- Personagens legais
+- Aquele jogo estilo PunchOut, em que as costas do cara ficam na frente do player
+
+
+Put your back into it!
+- Jogo de boxe/luta em que o player tem que digitar uma combinação de letras para acertar/defender os golpes
+- Progressão roguelike, cada vitória traz algum aumento, morreu perde tudo (Go back to the beginning!)
+- Queria muito muito muito que os gráficos fosse tipo pokemon red, aquele cinza esverdeado pixelado, cada murro soltando pixels pela tela
+- Nesse caso, o que vai valer aqui é ter um cast de personagens legais e jogar em modo tournament-like
+
+https://www.shutterstock.com/pt/image-vector/vector-pixel-art-muay-thai-stance-1095261995
+

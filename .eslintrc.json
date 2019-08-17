@@ -1,0 +1,51 @@
+{
+    "extends": "airbnb-base",
+    "env": {
+      "browser": 1
+    },
+
+    "globals": {
+      "angular": 1,
+      "_": 1,
+      "$": 1,
+      "moment": 1,
+      "CKEDITOR": 1,
+      "amplitude": 1,
+      "google": 1,
+      "_aaq": 1,
+      "Raven": 1,
+      "Intercom": 1,
+      "jQuery": 1
+    },
+
+    "rules": {
+      "arrow-body-style": 0,
+      "camelcase": 0,
+      "comma-dangle": 0,
+      "consistent-return": 0,
+      "func-names": 0,
+      "indent": 0,
+      "max-len": 0,
+      "new-cap": 0,
+      "newline-per-chained-call": 0,
+      "no-case-declarations": 0,
+      "no-console":0,
+      "no-else-return": 0,
+      "no-eval": 0,
+      "no-loop-func": 0,
+      "no-nested-ternary": 0,
+      "no-param-reassign": 0,
+      "no-plusplus": 0,
+      "no-prototype-builtins": 0,
+      "no-use-before-define": 0,
+      "no-useless-concat": 0,
+      "prefer-destructuring": 0,
+      "prefer-template": 0,
+      "spaced-comment": 0,
+      "linebreak-style": 0,
+      "no-extend-native": 0,
+      "no-underscore-dangle": 0,
+      "no-restricted-globals": 0,
+      "strict": 0
+    }
+}
