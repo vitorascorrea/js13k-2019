@@ -129,14 +129,14 @@ function writeWinnerInHtml(player_state, opponent_state) {
 function addNextFightButton() {
   GLOBAL_DIFFICULTY++;
   GLOBAL_MODIFIERS++;
-  GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku', 10, GLOBAL_MODIFIERS);
+  GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku, ' + backNicknameGenerator(), 10, GLOBAL_MODIFIERS);
   document.getElementById('playeroptions').innerHTML = `<button onclick="startNewGame()">Next Fight</button>`;
 }
 
 function addResetButton() {
   GLOBAL_DIFFICULTY = 3;
   GLOBAL_MODIFIERS = 0;
-  GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku', 10, GLOBAL_MODIFIERS);
+  GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku, ' + backNicknameGenerator(), 10, GLOBAL_MODIFIERS);
   document.getElementById('playeroptions').innerHTML = `<button onclick="startNewGame()">Restart Tournament</button>`;
 }
 
@@ -366,10 +366,19 @@ function capitalize(string) {
 }
 
 function nicknameGenerator() {
-  const list_1 = ['death', 'chaos', 'fire', 'sea', 'iron', 'sand', 'coconut', 'wind', 'salt', 'vulcan', 'rock', 'boulder', 'bone', 'skull', 'soul', 'flesh'];
+  const list_1 = ['back', 'scar', 'death', 'chaos', 'fire', 'sea', 'iron', 'sand', 'coconut', 'wind', 'salt', 'vulcan', 'rock', 'boulder', 'bone', 'skull', 'soul', 'flesh'];
   const list_2 = ['bringer', 'destroyer', 'eater', 'walker', 'king', 'puncher', 'surfer', 'climber', 'hunter', 'crusher', 'ripper'];
 
   return 'The ' + capitalize(getRandomItemInArray(list_1)) + ' ' + capitalize(getRandomItemInArray(list_2));
+}
+
+function backNicknameGenerator() {
+  //here tiku's nickname changes based on the advance of the tournament
+  const list = ['weak', 'dirt', 'wood', 'bronze', 'turtle', 'rock', 'golden', 'totem'];
+
+  const index = GLOBAL_DIFFICULTY - 3 > list.length - 1 ? list.length - 1 : GLOBAL_DIFFICULTY - 3;
+
+  return 'The ' + capitalize(list[index]) + ' Back';
 }
 
 function startNewGame() {
@@ -386,5 +395,5 @@ function startNewGame() {
 var GLOBAL_PROMISE;
 var GLOBAL_DIFFICULTY = 3;
 var GLOBAL_MODIFIERS = 0;
-var GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku', 10, GLOBAL_MODIFIERS);
+var GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku, ' + backNicknameGenerator(), 10, GLOBAL_MODIFIERS);
 startNewGame();
