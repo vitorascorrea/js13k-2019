@@ -25,6 +25,7 @@ function startNewPlayer(name, fighting_spirit, allowed_buff_level) {
         quantity: 3
       },
     ],
+    heuristic: fighting_spirit,
     allowed_buffs: getAllowedBuffs(allowed_buff_level)
   };
 }
@@ -60,7 +61,7 @@ async function gameLoop(player_state, opponent_state, game_log) {
     }
   } else {
     const player_card_id = await getPlayerValidInput(player_state);
-    const opponent_card_id = getOpponentValidInput(opponent_state);
+    const opponent_card_id = getOpponentValidInput(opponent_state, game_log);
 
     const player_card = player_state.cards.find(c => c.id === player_card_id);
     const opponent_card = opponent_state.cards.find(c => c.id === opponent_card_id);
@@ -169,8 +170,54 @@ function defer() {
   return deferred;
 }
 
-function getOpponentValidInput(opponent_state) {
+function getOpponentValidInput(opponent_state, game_log) {
   const available_cards = getAvailableCards(opponent_state);
+  if (opponent_state.heuristic <= 4) {
+    return simpletonHeuristic(available_cards);
+  } else if (opponent_state.heuristic <= 6) {
+    return counterLastMoveHeuristic(available_cards, game_log);
+  } else if (opponent_state.heuristic > 6) {
+    return alwaysUseBuffHeuristic(available_cards, game_log);
+  } else {
+    return randomHeuristic(available_cards);
+  }
+}
+
+function simpletonHeuristic(available_cards) {
+  return available_cards[0].id;
+}
+
+function counterLastMoveHeuristic(available_cards, game_log) {
+  if (game_log.length > 0) {
+    const last_turn = game_log.slice(-1)[0];
+    const last_turn_player_move = last_turn.last_player_card.type;
+    switch (last_turn_player_move) {
+      case 'jab':
+        const has_straight = available_cards.find(c => c.type === 'straight');
+        if (has_straight) return has_straight.id;
+        else return getRandomItemInArray(available_cards).id;
+      case 'straight':
+        const has_hook = available_cards.find(c => c.type === 'hook');
+        if (has_hook) return has_hook.id;
+        else return getRandomItemInArray(available_cards).id;
+      case 'hook':
+        const has_jab = available_cards.find(c => c.type === 'jab');
+        if (has_jab) return has_jab.id;
+        else return getRandomItemInArray(available_cards).id;
+      default:
+        return getRandomItemInArray(available_cards).id;
+    }
+  } else {
+    return getRandomItemInArray(available_cards).id;
+  }
+}
+
+function alwaysUseBuffHeuristic(available_cards, game_log) {
+  const has_card_with_modifier = available_cards.find(c => c.modifier);
+  return has_card_with_modifier ? has_card_with_modifier.id : counterLastMoveHeuristic(available_cards, game_log);
+}
+
+function randomHeuristic(available_cards) {
   return getRandomItemInArray(available_cards).id;
 }
 
