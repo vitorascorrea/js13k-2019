@@ -24,6 +24,12 @@ function startNewPlayer(name, fighting_spirit, allowed_buff_level) {
         type: 'hook',
         quantity: 3
       },
+      {
+        id: 4,
+        name: 'Block',
+        original_name: 'Block',
+        type: 'block'
+      },
     ],
     heuristic: fighting_spirit,
     allowed_buffs: getAllowedBuffs(allowed_buff_level)
@@ -96,11 +102,11 @@ function fightOutcome(player_state, opponent_state) {
 }
 
 function cardsLeft(state) {
-  return state.cards.map(c => c.quantity).reduce((a, b) => a + b, 0);
+  return state.cards.filter(c => c.type !== 'block').map(c => c.quantity).reduce((a, b) => a + b, 0);
 }
 
 function getAvailableCards(state) {
-  return state.cards.filter(c => c.quantity);
+  return state.cards.filter(c => c.quantity > 0 || c.type === 'block');
 }
 
 function writeWinnerInHtml(player_state, opponent_state) {
@@ -129,21 +135,21 @@ function writeWinnerInHtml(player_state, opponent_state) {
 function addNextFightButton() {
   GLOBAL_DIFFICULTY++;
   GLOBAL_MODIFIERS++;
-  GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku, ' + backNicknameGenerator(), 10, GLOBAL_MODIFIERS);
+  GLOBAL_MAIN_PLAYER = startNewPlayer('Honu', 10, GLOBAL_MODIFIERS);
   document.getElementById('playeroptions').innerHTML = `<button onclick="startNewGame()">Next Fight</button>`;
 }
 
 function addResetButton() {
   GLOBAL_DIFFICULTY = 3;
   GLOBAL_MODIFIERS = 0;
-  GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku, ' + backNicknameGenerator(), 10, GLOBAL_MODIFIERS);
+  GLOBAL_MAIN_PLAYER = startNewPlayer('Honu', 10, GLOBAL_MODIFIERS);
   document.getElementById('playeroptions').innerHTML = `<button onclick="startNewGame()">Restart Tournament</button>`;
 }
 
 function getPlayerValidInput(player_state) {
   GLOBAL_PROMISE = defer();
   const valid_cards_html = getAvailableCards(player_state).map((card) => {
-    return `<button onclick="selectCard(${card.id})">${card.name} (${card.quantity})</button>`;
+    return `<button onclick="selectCard(${card.id})">${card.name} ${card.quantity ? '(' + card.quantity + ')' : ''}</button>`;
   });
 
   document.getElementById('playeroptions').innerHTML = valid_cards_html.join('<br>');
@@ -232,10 +238,21 @@ function updatePlayerState(player_state, last_player_card, last_opponent_card) {
   new_state.fighting_spirit = new_state.fighting_spirit + card_outcome;
   const new_state_last_player_card = new_state.cards.find(c => c.id === last_player_card.id);
 
-  new_state_last_player_card.quantity--;
+  if (new_state_last_player_card.type === 'block') {
+    const attack_card = getRandomItemInArray(new_state.cards.filter(c => c.type !== 'block'));
+    attack_card.quantity--;
+  } else {
+    new_state_last_player_card.quantity--;
+
+  }
 
   //remove last used modifier
-  if (new_state_last_player_card.modifier) {
+  if (new_state_last_player_card.type === 'block') {
+    new_state.cards.forEach((card) => {
+      card.modifier = '';
+      card.name = card.original_name + '';
+    });
+  } else if (new_state_last_player_card.modifier) {
     new_state_last_player_card.modifier = '';
     new_state_last_player_card.name = new_state_last_player_card.original_name + '';
   }
@@ -247,7 +264,7 @@ function updatePlayerState(player_state, last_player_card, last_opponent_card) {
 
 function checkForModifiers(state) {
   if (Math.random() > 0.5 && state.allowed_buffs.length > 0) {
-    const random_card = getRandomItemInArray(state.cards.filter(c => !c.modifier));
+    const random_card = getRandomItemInArray(state.cards.filter(c => !c.modifier && c.type !== 'block'));
     const modifier = getRandomItemInArray(state.allowed_buffs);
     random_card.modifier = modifier;
     random_card.name = capitalize(modifier) + ' ' + random_card.name;
@@ -259,6 +276,7 @@ function getCardsOutcomeForPlayer(player_card, opponent_card) {
   //jab wins hook, loses to straight
   //straight wins jab, loses to hook
   //hook wins straight, loses to jab
+  //block causes the outcome to be -1 if opponent attack, 0 if both block
 
   //slug modifier multiplies by 2 the outcome for both player and opponent
   //sucker modifier add 1 to the outcome of the player
@@ -267,14 +285,16 @@ function getCardsOutcomeForPlayer(player_card, opponent_card) {
   //rabbit modifier reverts the outcome for the player
 
   let outcome;
-
-  if (player_card.type === opponent_card.type) outcome = -1;
-  if (player_card.type === 'jab' && opponent_card.type === 'straight') outcome = -2;
-  if (player_card.type === 'jab' && opponent_card.type === 'hook') outcome = 1;
-  if (player_card.type === 'straight' && opponent_card.type === 'jab') outcome = 1;
-  if (player_card.type === 'straight' && opponent_card.type === 'hook') outcome = -2;
-  if (player_card.type === 'hook' && opponent_card.type === 'jab') outcome = -2;
-  if (player_card.type === 'hook' && opponent_card.type === 'straight') outcome = 1;
+  if (player_card.type === 'block' && player_card.type === opponent_card.type) outcome = 0;
+  else if (player_card.type === 'block' && opponent_card.type !== 'block') outcome = -1;
+  else if (player_card.type !== 'block' && opponent_card.type === 'block') outcome = 0;
+  else if (player_card.type === opponent_card.type) outcome = -1;
+  else if (player_card.type === 'jab' && opponent_card.type === 'straight') outcome = -2;
+  else if (player_card.type === 'jab' && opponent_card.type === 'hook') outcome = 1;
+  else if (player_card.type === 'straight' && opponent_card.type === 'jab') outcome = 1;
+  else if (player_card.type === 'straight' && opponent_card.type === 'hook') outcome = -2;
+  else if (player_card.type === 'hook' && opponent_card.type === 'jab') outcome = -2;
+  else if (player_card.type === 'hook' && opponent_card.type === 'straight') outcome = 1;
 
   if (player_card.modifier === 'slug' || opponent_card.modifier === 'slug') outcome = outcome * 2;
   if (player_card.modifier === 'sucker') outcome = outcome + 1;
@@ -372,15 +392,6 @@ function nicknameGenerator() {
   return 'The ' + capitalize(getRandomItemInArray(list_1)) + ' ' + capitalize(getRandomItemInArray(list_2));
 }
 
-function backNicknameGenerator() {
-  //here tiku's nickname changes based on the advance of the tournament
-  const list = ['weak', 'dirt', 'wood', 'bronze', 'turtle', 'rock', 'golden', 'totem'];
-
-  const index = GLOBAL_DIFFICULTY - 3 > list.length - 1 ? list.length - 1 : GLOBAL_DIFFICULTY - 3;
-
-  return 'The ' + capitalize(list[index]) + ' Back';
-}
-
 function startNewGame() {
   const opponent_player = startNewPlayer(opponentNameGenerator(), GLOBAL_DIFFICULTY, GLOBAL_MODIFIERS);
 
@@ -395,5 +406,5 @@ function startNewGame() {
 var GLOBAL_PROMISE;
 var GLOBAL_DIFFICULTY = 3;
 var GLOBAL_MODIFIERS = 0;
-var GLOBAL_MAIN_PLAYER = startNewPlayer('Tiku, ' + backNicknameGenerator(), 10, GLOBAL_MODIFIERS);
+var GLOBAL_MAIN_PLAYER = startNewPlayer('Honu', 10, GLOBAL_MODIFIERS);
 startNewGame();
