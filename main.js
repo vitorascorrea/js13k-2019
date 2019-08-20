@@ -2,6 +2,7 @@ function startNewPlayer(name, fighting_spirit, allowed_buff_level) {
   return {
     name: name,
     fighting_spirit,
+    status: '',
     cards: [
       {
         id: 1,
@@ -232,10 +233,22 @@ function getRandomItemInArray(array) {
 }
 
 function updatePlayerState(player_state, last_player_card, last_opponent_card) {
-  const card_outcome = getCardsOutcomeForPlayer(last_player_card, last_opponent_card);
-
+  let card_outcome = getCardsOutcomeForPlayer(last_player_card, last_opponent_card);
   const new_state = JSON.parse(JSON.stringify(player_state));
+
+  //being stunned increases the damage taken
+  if (new_state.status === 'stunned') {
+    card_outcome--;
+  }
+
   new_state.fighting_spirit = new_state.fighting_spirit + card_outcome;
+
+  if (card_outcome <= -2 && Math.random() > 0.3) {
+    new_state.status = 'stunned';
+  } else {
+    new_state.status = '';
+  }
+
   const new_state_last_player_card = new_state.cards.find(c => c.id === last_player_card.id);
 
   if (new_state_last_player_card.type === 'block') {
@@ -320,24 +333,17 @@ function writeTurnOutcomeInHtml(game_log) {
   const last_round = game_log.slice(-1)[0];
   const player_name = last_round.new_player_state.name;
   const opponent_name = last_round.new_opponent_state.name;
+  const player_status = last_round.new_player_state.status || '';
+  const opponent_status = last_round.new_opponent_state.status || '';
 
-  if (last_round.new_player_state.fighting_spirit > 0) {
-    document.getElementById('playerfs').innerHTML = player_name + ' <br> Fighting Spirit: ' + '#'.repeat(last_round.new_player_state.fighting_spirit);
-  } else {
-    document.getElementById('playerfs').innerHTML = player_name + ' <br> Fighting Spirit: ';
-  }
+  document.getElementById('playerfs').innerHTML = player_name + (player_status ? ' (' + player_status + ')' : '') + ' <br> Fighting Spirit: ' + '#'.repeat(last_round.new_player_state.fighting_spirit > 0 ? last_round.new_player_state.fighting_spirit : 0);
 
-  if (last_round.new_opponent_state.fighting_spirit > 0) {
-    document.getElementById('opponentfs').innerHTML = opponent_name + ' <br> Fighting Spirit: ' + '#'.repeat(last_round.new_opponent_state.fighting_spirit);
-  } else {
-    document.getElementById('opponentfs').innerHTML = opponent_name + ' <br> Fighting Spirit: ';
-  }
+  document.getElementById('opponentfs').innerHTML = opponent_name + (opponent_status ? ' (' + opponent_status + ')' : '') + ' <br> Fighting Spirit: ' + '#'.repeat(last_round.new_opponent_state.fighting_spirit > 0 ? last_round.new_opponent_state.fighting_spirit : 0);
 
   document.getElementById('gamelog').innerHTML = `
   <br> Turn ${game_log.length}
   <br> ${player_name} used ${last_round.last_player_card.name}
   <br> ${opponent_name} used ${last_round.last_opponent_card.name}
-  <br>
   <br>====================================================
   ` + document.getElementById('gamelog').innerHTML;
 }
