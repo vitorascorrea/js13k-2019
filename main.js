@@ -336,7 +336,7 @@ class Render {
 
   static renderHealthBar(fighter, ui_id) {
     const fighting_spirit = fighter.fighting_spirit > 0 ? fighter.fighting_spirit : 0;
-    document.getElementById(ui_id).innerHTML = fighter.name + ' <br> Fighting Spirit: ' + '#'.repeat(fighting_spirit);
+    document.getElementById(ui_id).innerHTML = fighter.name + (fighter.status ? ' (' + fighter.status + ')' : '') + ' <br> Fighting Spirit: ' + '#'.repeat(fighting_spirit);
   }
 
   static renderMatchLog(game_state, ui_id) {
