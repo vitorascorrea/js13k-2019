@@ -148,6 +148,7 @@ class Card {
     //guts modifier multiplies by 2 positive outcomes of the player
     //skillful modifier adds 1 to negative outcomes for the player
     //rabbit modifier reverts the outcome for the player
+    //corkscrew modifier subtracts 3 to negative outcomes for the player if the player is blocking
 
     let outcome;
     if (player_card.type === 'block' && player_card.type === opponent_card.type) outcome = 0;
@@ -166,6 +167,7 @@ class Card {
     if (player_card.modifier === 'guts' && outcome > 0) outcome = outcome * 2;
     if (player_card.modifier === 'skillful' && outcome < 0) outcome = outcome + 1;
     if (player_card.modifier === 'rabbit') outcome = outcome * -1;
+    if (player_card.type === 'block' && opponent_card.modifier === 'corkscrew') outcome = outcome - 3;
 
     return outcome;
   }
@@ -206,12 +208,12 @@ class GameState {
   }
 
   generateRandomOpponentFighter(fighting_spirit) {
-    this.current_opponent_fighter = new Fighter(null, fighting_spirit, ['slug', 'sucker', 'guts', 'skillful', 'rabbit']);
+    this.current_opponent_fighter = new Fighter(null, fighting_spirit, ['slug', 'sucker', 'guts', 'skillful', 'rabbit', 'corkscrew']);
     this.is_current_opponent_random = true;
   }
 
   generatePlayerFighter() {
-    this.player_fighter = new Fighter('Honu', 10, ['slug', 'sucker', 'guts', 'skillful', 'rabbit']);
+    this.player_fighter = new Fighter('Honu', 10, ['slug', 'sucker', 'guts', 'skillful', 'rabbit', 'corkscrew']);
   }
 
   startNewMatch() {
@@ -253,10 +255,17 @@ class GameState {
       const player_card = this.player_fighter.cards.find(c => c.type === player_card_type);
       const opponent_card = this.current_opponent_fighter.cards.find(c => c.type === opponent_card_type);
 
+      const player_outcome = Card.getCardsOutcomeForPlayer(player_card, opponent_card);
+      const opponent_outcome = Card.getCardsOutcomeForPlayer(opponent_card, player_card);
+
+      const last_player_card = Object.assign({}, player_card);
+      const last_opponent_card = Object.assign({}, opponent_card);
+
+      this.updateMatchLog(last_player_card, last_opponent_card, player_outcome, opponent_outcome);
+
       this.player_fighter.updateFighter(player_card, opponent_card);
       this.current_opponent_fighter.updateFighter(opponent_card, player_card);
 
-      this.updateMatchLog(player_card, opponent_card);
 
       Render.renderTurnOutcomeInHtml(this);
 
@@ -287,12 +296,14 @@ class GameState {
     }
   }
 
-  updateMatchLog(player_card, opponent_card) {
+  updateMatchLog(player_card, opponent_card, player_outcome, opponent_outcome) {
     this.current_match_log.push({
       last_player_card: player_card,
-      last_opponent_card: opponent_card,
       new_player_state: this.player,
-      new_opponent_state: this.current_opponent
+      player_outcome,
+      last_opponent_card: opponent_card,
+      new_opponent_state: this.current_opponent,
+      opponent_outcome
     });
   }
 
@@ -336,8 +347,8 @@ class Render {
 
       document.getElementById(ui_id).innerHTML = `
       <br> Turn ${game_state.current_match_log.length}
-      <br> ${player_name} used ${last_round.last_player_card.name}
-      <br> ${opponent_name} used ${last_round.last_opponent_card.name}
+      <br> ${player_name} used ${last_round.last_player_card.name}! ${last_round.player_outcome} to fighting spirit!
+      <br> ${opponent_name} used ${last_round.last_opponent_card.name}! ${last_round.opponent_outcome} to fighting spirit!
       <br>====================================================
       ` + document.getElementById(ui_id).innerHTML;
     } else {
