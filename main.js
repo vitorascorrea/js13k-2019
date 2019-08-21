@@ -225,7 +225,7 @@ class GameState {
     Render.renderHUD(this);
 
 
-    this.gameLoop();
+    this.matchLoop();
   }
 
   restartTournament() {
@@ -240,7 +240,7 @@ class GameState {
     this.startNewMatch();
   }
 
-  async gameLoop() {
+  async matchLoop() {
     if (this.isMatchOver()) {
       Render.renderWinnerInHtml(this);
       if (this.fightOutcome() === 1) {
@@ -255,9 +255,9 @@ class GameState {
       const player_card = this.player_fighter.cards.find(c => c.type === player_card_type);
       const opponent_card = this.current_opponent_fighter.cards.find(c => c.type === opponent_card_type);
 
+      //here we get the outcome and a copy of the last played card for the log
       const player_outcome = Card.getCardsOutcomeForPlayer(player_card, opponent_card);
       const opponent_outcome = Card.getCardsOutcomeForPlayer(opponent_card, player_card);
-
       const last_player_card = Object.assign({}, player_card);
       const last_opponent_card = Object.assign({}, opponent_card);
 
@@ -269,7 +269,7 @@ class GameState {
 
       Render.renderTurnOutcomeInHtml(this);
 
-      return this.gameLoop();
+      return this.matchLoop();
     }
   }
 
