@@ -1,416 +1,438 @@
-function startNewPlayer(name, fighting_spirit, allowed_buff_level) {
-  return {
-    name: name,
-    fighting_spirit,
-    status: '',
-    cards: [
-      {
-        id: 1,
-        name: 'Jab',
-        original_name: 'Jab',
-        type: 'jab',
-        quantity: 3
-      },
-      {
-        id: 2,
-        name: 'Straight',
-        original_name: 'Straight',
-        type: 'straight',
-        quantity: 3
-      },
-      {
-        id: 3,
-        name: 'Hook',
-        original_name: 'Hook',
-        type: 'hook',
-        quantity: 3
-      },
-      {
-        id: 4,
-        name: 'Block',
-        original_name: 'Block',
-        type: 'block'
-      },
-    ],
-    heuristic: fighting_spirit,
-    allowed_buffs: getAllowedBuffs(allowed_buff_level)
-  };
-}
+class Fighter {
+  constructor(name, fighting_spirit, default_allowed_buffs) {
+    this.name = name || Fighter.createRandomName();
+    this.fighting_spirit = fighting_spirit;
+    this.status = '';
+    this.allowed_buffs = default_allowed_buffs;
 
-function getAllowedBuffs(allowed_buff_level) {
-  const buffs = [];
-  if (allowed_buff_level === 1) {
-    buffs.push('slug');
-  }
-  if (allowed_buff_level === 2) {
-    buffs.push('sucker');
-  }
-  if (allowed_buff_level === 3) {
-    buffs.push('guts');
-  }
-  if (allowed_buff_level === 4) {
-    buffs.push('skillful');
-  }
-  if (allowed_buff_level === 5) {
-    buffs.push('rabbit');
+    this.setDefaultCards();
+    this.setHeuristic(fighting_spirit);
   }
 
-  return buffs;
-}
+  static createRandomName() {
+    //here we try to produce a hawaiian sound name. We can start with a consonant or a vowel and then always follown with the oposite letter type, ending with a vowel
+    const vowels = ['a', 'e', 'i', 'o', 'u'];
+    const consonants = ['h', 'k', 'l', 'm', 'n', 'p', 'w'];
 
-async function gameLoop(player_state, opponent_state, game_log) {
-  if (isEndgame(player_state, opponent_state)) {
-    writeWinnerInHtml(player_state, opponent_state);
-    if (fightOutcome(player_state, opponent_state) === 1) {
-      addNextFightButton();
-    } else {
-      addResetButton();
-    }
-  } else {
-    const player_card_id = await getPlayerValidInput(player_state);
-    const opponent_card_id = getOpponentValidInput(opponent_state, game_log);
+    let name = '';
+    let last_type = '';
 
-    const player_card = player_state.cards.find(c => c.id === player_card_id);
-    const opponent_card = opponent_state.cards.find(c => c.id === opponent_card_id);
+    //first a random to get the name size, between 4 and 7 letters
+    const name_size = Math.floor(Math.random() * (7 - 4 + 1)) + 4;
 
-    const new_player_state = updatePlayerState(player_state, player_card, opponent_card);
-    const new_opponent_state = updatePlayerState(opponent_state, opponent_card, player_card);
-
-    updateGameLog(game_log, new_player_state, player_card, new_opponent_state, opponent_card);
-
-    writeTurnOutcomeInHtml(game_log);
-
-    return gameLoop(new_player_state, new_opponent_state, game_log);
-  }
-}
-
-function isEndgame(player_state, opponent_state) {
-  if (player_state.fighting_spirit <= 0) return true;
-  if (opponent_state.fighting_spirit <= 0) return true;
-  if (cardsLeft(player_state) === 0) return true;
-  return false;
-}
-
-function fightOutcome(player_state, opponent_state) {
-  if (opponent_state.fighting_spirit <= 0 && player_state.fighting_spirit > 0) return 1;
-  else if (player_state.fighting_spirit <= 0 && opponent_state.fighting_spirit > 0) return -1;
-  else if (cardsLeft(player_state) <= 0) {
-    if (player_state.fighting_spirit > opponent_state.fighting_spirit) return 1;
-    else if (player_state.fighting_spirit < opponent_state.fighting_spirit) return -1;
-    else return 0;
-  }
-  else return 0;
-}
-
-function cardsLeft(state) {
-  return state.cards.filter(c => c.type !== 'block').map(c => c.quantity).reduce((a, b) => a + b, 0);
-}
-
-function getAvailableCards(state) {
-  return state.cards.filter(c => c.quantity > 0 || c.type === 'block');
-}
-
-function writeWinnerInHtml(player_state, opponent_state) {
-  const player_name = player_state.name;
-  const opponent_name = opponent_state.name;
-  const fight_outcome = fightOutcome(player_state, opponent_state);
-  let result = '';
-  switch (fight_outcome) {
-    case 1:
-      result = player_name + ' wins!';
-      break;
-    case -1:
-      result = opponent_name + ' wins!';
-      break;
-    default:
-      result = 'Draw!';
-      break;
-  }
-
-  document.getElementById('gamelog').innerHTML = `
-  <br> RESULT ${result.toUpperCase()}
-  <br>====================================================
-  ` + document.getElementById('gamelog').innerHTML;
-}
-
-function addNextFightButton() {
-  GLOBAL_DIFFICULTY++;
-  GLOBAL_MODIFIERS++;
-  GLOBAL_MAIN_PLAYER = startNewPlayer('Honu', 10, GLOBAL_MODIFIERS);
-  document.getElementById('playeroptions').innerHTML = `<button onclick="startNewGame()">Next Fight</button>`;
-}
-
-function addResetButton() {
-  GLOBAL_DIFFICULTY = 3;
-  GLOBAL_MODIFIERS = 0;
-  GLOBAL_MAIN_PLAYER = startNewPlayer('Honu', 10, GLOBAL_MODIFIERS);
-  document.getElementById('playeroptions').innerHTML = `<button onclick="startNewGame()">Restart Tournament</button>`;
-}
-
-function getPlayerValidInput(player_state) {
-  GLOBAL_PROMISE = defer();
-  const valid_cards_html = getAvailableCards(player_state).map((card) => {
-    return `<button onclick="selectCard(${card.id})">${card.name} ${card.quantity ? '(' + card.quantity + ')' : ''}</button>`;
-  });
-
-  document.getElementById('playeroptions').innerHTML = valid_cards_html.join('<br>');
-
-  return GLOBAL_PROMISE.promise;
-}
-
-function selectCard(card) {
-  GLOBAL_PROMISE.resolve(card);
-}
-
-function defer() {
-  const deferred = {
-    promise: null,
-    resolve: null,
-    reject: null
-  };
-
-  deferred.promise = new Promise((resolve, reject) => {
-    deferred.resolve = resolve;
-    deferred.reject = reject;
-  });
-
-  return deferred;
-}
-
-function getOpponentValidInput(opponent_state, game_log) {
-  const available_cards = getAvailableCards(opponent_state);
-  if (opponent_state.heuristic <= 4) {
-    return simpletonHeuristic(available_cards);
-  } else if (opponent_state.heuristic <= 6) {
-    return counterLastMoveHeuristic(available_cards, game_log);
-  } else if (opponent_state.heuristic > 6) {
-    return alwaysUseBuffHeuristic(available_cards, game_log);
-  } else {
-    return randomHeuristic(available_cards);
-  }
-}
-
-function simpletonHeuristic(available_cards) {
-  return available_cards[0].id;
-}
-
-function counterLastMoveHeuristic(available_cards, game_log) {
-  if (game_log.length > 0) {
-    const last_turn = game_log.slice(-1)[0];
-    const last_turn_player_move = last_turn.last_player_card.type;
-    switch (last_turn_player_move) {
-      case 'jab':
-        const has_straight = available_cards.find(c => c.type === 'straight');
-        if (has_straight) return has_straight.id;
-        else return getRandomItemInArray(available_cards).id;
-      case 'straight':
-        const has_hook = available_cards.find(c => c.type === 'hook');
-        if (has_hook) return has_hook.id;
-        else return getRandomItemInArray(available_cards).id;
-      case 'hook':
-        const has_jab = available_cards.find(c => c.type === 'jab');
-        if (has_jab) return has_jab.id;
-        else return getRandomItemInArray(available_cards).id;
-      default:
-        return getRandomItemInArray(available_cards).id;
-    }
-  } else {
-    return getRandomItemInArray(available_cards).id;
-  }
-}
-
-function alwaysUseBuffHeuristic(available_cards, game_log) {
-  const has_card_with_modifier = available_cards.find(c => c.modifier);
-  return has_card_with_modifier ? has_card_with_modifier.id : counterLastMoveHeuristic(available_cards, game_log);
-}
-
-function randomHeuristic(available_cards) {
-  return getRandomItemInArray(available_cards).id;
-}
-
-function getRandomItemInArray(array) {
-  return array[Math.floor(Math.random() * array.length)];
-}
-
-function updatePlayerState(player_state, last_player_card, last_opponent_card) {
-  let card_outcome = getCardsOutcomeForPlayer(last_player_card, last_opponent_card);
-  const new_state = JSON.parse(JSON.stringify(player_state));
-
-  //being stunned increases the damage taken
-  if (new_state.status === 'stunned') {
-    card_outcome--;
-  }
-
-  new_state.fighting_spirit = new_state.fighting_spirit + card_outcome;
-
-  if (card_outcome <= -2 && Math.random() > 0.3) {
-    new_state.status = 'stunned';
-  } else {
-    new_state.status = '';
-  }
-
-  const new_state_last_player_card = new_state.cards.find(c => c.id === last_player_card.id);
-
-  if (new_state_last_player_card.type === 'block') {
-    const attack_card = getRandomItemInArray(new_state.cards.filter(c => c.type !== 'block'));
-    attack_card.quantity--;
-  } else {
-    new_state_last_player_card.quantity--;
-
-  }
-
-  //remove last used modifier
-  if (new_state_last_player_card.type === 'block') {
-    new_state.cards.forEach((card) => {
-      card.modifier = '';
-      card.name = card.original_name + '';
-    });
-  } else if (new_state_last_player_card.modifier) {
-    new_state_last_player_card.modifier = '';
-    new_state_last_player_card.name = new_state_last_player_card.original_name + '';
-  }
-
-  checkForModifiers(new_state);
-
-  return new_state;
-}
-
-function checkForModifiers(state) {
-  if (Math.random() > 0.5 && state.allowed_buffs.length > 0) {
-    const random_card = getRandomItemInArray(state.cards.filter(c => !c.modifier && c.type !== 'block'));
-    const modifier = getRandomItemInArray(state.allowed_buffs);
-    random_card.modifier = modifier;
-    random_card.name = capitalize(modifier) + ' ' + random_card.name;
-  }
-}
-
-function getCardsOutcomeForPlayer(player_card, opponent_card) {
-  //equal moves damage -1 for each
-  //jab wins hook, loses to straight
-  //straight wins jab, loses to hook
-  //hook wins straight, loses to jab
-  //block causes the outcome to be -1 if opponent attack, 0 if both block
-
-  //slug modifier multiplies by 2 the outcome for both player and opponent
-  //sucker modifier add 1 to the outcome of the player
-  //guts modifier multiplies by 2 positive outcomes of the player
-  //skillful modifier adds 1 to negative outcomes for the player
-  //rabbit modifier reverts the outcome for the player
-
-  let outcome;
-  if (player_card.type === 'block' && player_card.type === opponent_card.type) outcome = 0;
-  else if (player_card.type === 'block' && opponent_card.type !== 'block') outcome = -1;
-  else if (player_card.type !== 'block' && opponent_card.type === 'block') outcome = 0;
-  else if (player_card.type === opponent_card.type) outcome = -1;
-  else if (player_card.type === 'jab' && opponent_card.type === 'straight') outcome = -2;
-  else if (player_card.type === 'jab' && opponent_card.type === 'hook') outcome = 1;
-  else if (player_card.type === 'straight' && opponent_card.type === 'jab') outcome = 1;
-  else if (player_card.type === 'straight' && opponent_card.type === 'hook') outcome = -2;
-  else if (player_card.type === 'hook' && opponent_card.type === 'jab') outcome = -2;
-  else if (player_card.type === 'hook' && opponent_card.type === 'straight') outcome = 1;
-
-  if (player_card.modifier === 'slug' || opponent_card.modifier === 'slug') outcome = outcome * 2;
-  if (player_card.modifier === 'sucker') outcome = outcome + 1;
-  if (player_card.modifier === 'guts' && outcome > 0) outcome = outcome * 2;
-  if (player_card.modifier === 'skillful' && outcome < 0) outcome = outcome + 1;
-  if (player_card.modifier === 'rabbit') outcome = outcome * -1;
-
-  return outcome;
-}
-
-function updateGameLog(game_log, new_player_state, player_card, new_opponent_state, opponent_card) {
-  game_log.push({
-    last_player_card: player_card,
-    last_opponent_card: opponent_card,
-    new_player_state,
-    new_opponent_state
-  });
-
-  return game_log;
-}
-
-function writeTurnOutcomeInHtml(game_log) {
-  const last_round = game_log.slice(-1)[0];
-  const player_name = last_round.new_player_state.name;
-  const opponent_name = last_round.new_opponent_state.name;
-  const player_status = last_round.new_player_state.status || '';
-  const opponent_status = last_round.new_opponent_state.status || '';
-
-  document.getElementById('playerfs').innerHTML = player_name + (player_status ? ' (' + player_status + ')' : '') + ' <br> Fighting Spirit: ' + '#'.repeat(last_round.new_player_state.fighting_spirit > 0 ? last_round.new_player_state.fighting_spirit : 0);
-
-  document.getElementById('opponentfs').innerHTML = opponent_name + (opponent_status ? ' (' + opponent_status + ')' : '') + ' <br> Fighting Spirit: ' + '#'.repeat(last_round.new_opponent_state.fighting_spirit > 0 ? last_round.new_opponent_state.fighting_spirit : 0);
-
-  document.getElementById('gamelog').innerHTML = `
-  <br> Turn ${game_log.length}
-  <br> ${player_name} used ${last_round.last_player_card.name}
-  <br> ${opponent_name} used ${last_round.last_opponent_card.name}
-  <br>====================================================
-  ` + document.getElementById('gamelog').innerHTML;
-}
-
-function opponentNameGenerator() {
-  //here we try to produce a hawaiian sound name. We can start with a consonant or a vowel and then always follown with the oposite letter type, ending with a vowel
-  const vowels = ['a', 'e', 'i', 'o', 'u'];
-  const consonants = ['h', 'k', 'l', 'm', 'n', 'p', 'w'];
-
-  let name = '';
-  let last_type = '';
-
-  //first a random to get the name size, between 4 and 7 letters
-  const name_size = Math.floor(Math.random() * (7 - 4 + 1)) + 4;
-
-  //then we decide the first letter
-  if (Math.random() > 0.5) {
-    name += getRandomItemInArray(consonants);
-    last_type = 'c';
-  } else {
-    name += getRandomItemInArray(vowels);
-    last_type = 'v';
-  }
-
-  //alternate between consonants and vowels
-  for (let i = 0; i < name_size; i++) {
-    if (last_type === 'v') {
-      name += getRandomItemInArray(consonants);
+    //then we decide the first letter
+    if (Math.random() > 0.5) {
+      name += Utils.getRandomItemInArray(consonants);
       last_type = 'c';
     } else {
-      name += getRandomItemInArray(vowels);
+      name += Utils.getRandomItemInArray(vowels);
       last_type = 'v';
+    }
+
+    //alternate between consonants and vowels
+    for (let i = 0; i < name_size; i++) {
+      if (last_type === 'v') {
+        name += Utils.getRandomItemInArray(consonants);
+        last_type = 'c';
+      } else {
+        name += Utils.getRandomItemInArray(vowels);
+        last_type = 'v';
+      }
+    }
+
+    //end with a vowel
+    if (last_type === 'c') {
+      name += Utils.getRandomItemInArray(vowels);
+    }
+
+    return Utils.capitalize(name) + ', ' + Fighter.nicknameGenerator();
+  }
+
+  static nicknameGenerator() {
+    const list_1 = ['back', 'scar', 'death', 'chaos', 'fire', 'sea', 'iron', 'sand', 'coconut', 'wind', 'salt', 'vulcan', 'rock', 'boulder', 'bone', 'skull', 'soul', 'flesh'];
+    const list_2 = ['bringer', 'destroyer', 'eater', 'walker', 'king', 'puncher', 'surfer', 'climber', 'hunter', 'crusher', 'ripper'];
+
+    return 'The ' + Utils.capitalize(Utils.getRandomItemInArray(list_1)) + ' ' + Utils.capitalize(Utils.getRandomItemInArray(list_2));
+  }
+
+  setDefaultCards() {
+    this.cards = [
+      new Card('jab', 'Jab', 3),
+      new Card('straight', 'Straight', 3),
+      new Card('hook', 'Hook', 3),
+      new Card('block', 'Block', null),
+    ]
+  }
+
+  setHeuristic(fighting_spirit) {
+    this.heuristic = fighting_spirit;
+  }
+
+  getCardsLeft() {
+    return this.cards.filter(c => c.type !== 'block').map(c => c.quantity).reduce((a, b) => a + b, 0);
+  }
+
+  getAvailableCards() {
+    return this.cards.filter(c => c.quantity > 0 || c.type === 'block');
+  }
+
+  addAllowedBuff(buff) {
+    this.allowed_buffs.push(buff);
+  }
+
+  applyModifiers() {
+    if (Math.random() > 0.5 && this.allowed_buffs.length > 0) {
+      const random_card = Utils.getRandomItemInArray(this.cards.filter(c => !c.modifier && c.type !== 'block'));
+      const modifier = Utils.getRandomItemInArray(this.allowed_buffs);
+      random_card.modifier = modifier;
+      random_card.name = Utils.capitalize(modifier) + ' ' + random_card.name;
     }
   }
 
-  //end with a vowel
-  if (last_type === 'c') {
-    name += getRandomItemInArray(vowels);
+  updateFighter(last_fighter_card, last_opponent_card) {
+    let card_outcome = Card.getCardsOutcomeForPlayer(last_fighter_card, last_opponent_card);
+
+    //being stunned increases the damage taken
+    if (this.status === 'stunned') {
+      card_outcome--;
+    }
+
+    this.fighting_spirit = this.fighting_spirit + card_outcome;
+
+    if (card_outcome <= -2 && Math.random() > 0.3) {
+      this.status = 'stunned';
+    } else {
+      this.status = '';
+    }
+
+    if (last_fighter_card.type === 'block') {
+      const attack_card = Utils.getRandomItemInArray(this.cards.filter(c => c.type !== 'block'));
+      attack_card.quantity--;
+    } else {
+      last_fighter_card.quantity--;
+
+    }
+
+    //remove last used modifier
+    if (last_fighter_card.type === 'block') {
+      this.cards.forEach((card) => {
+        card.modifier = '';
+        card.name = card.original_name + '';
+      });
+    } else if (last_fighter_card.modifier) {
+      last_fighter_card.modifier = '';
+      last_fighter_card.name = last_fighter_card.original_name + '';
+    }
+
+    this.applyModifiers();
+  }
+}
+
+class Card {
+  constructor(type, name, quantity) {
+    this.type = type;
+    this.name = name;
+    this.original_name = name;
+    this.quantity = quantity;
   }
 
-  return capitalize(name) + ', ' + nicknameGenerator();
+  static getCardsOutcomeForPlayer(player_card, opponent_card) {
+    //equal moves damage -1 for each
+    //jab wins hook, loses to straight
+    //straight wins jab, loses to hook
+    //hook wins straight, loses to jab
+    //block causes the outcome to be -1 if opponent attack, 0 if both block
+
+    //slug modifier multiplies by 2 the outcome for both player and opponent
+    //sucker modifier add 1 to the outcome of the player
+    //guts modifier multiplies by 2 positive outcomes of the player
+    //skillful modifier adds 1 to negative outcomes for the player
+    //rabbit modifier reverts the outcome for the player
+
+    let outcome;
+    if (player_card.type === 'block' && player_card.type === opponent_card.type) outcome = 0;
+    else if (player_card.type === 'block' && opponent_card.type !== 'block') outcome = -1;
+    else if (player_card.type !== 'block' && opponent_card.type === 'block') outcome = 0;
+    else if (player_card.type === opponent_card.type) outcome = -1;
+    else if (player_card.type === 'jab' && opponent_card.type === 'straight') outcome = -2;
+    else if (player_card.type === 'jab' && opponent_card.type === 'hook') outcome = 1;
+    else if (player_card.type === 'straight' && opponent_card.type === 'jab') outcome = 1;
+    else if (player_card.type === 'straight' && opponent_card.type === 'hook') outcome = -2;
+    else if (player_card.type === 'hook' && opponent_card.type === 'jab') outcome = -2;
+    else if (player_card.type === 'hook' && opponent_card.type === 'straight') outcome = 1;
+
+    if (player_card.modifier === 'slug' || opponent_card.modifier === 'slug') outcome = outcome * 2;
+    if (player_card.modifier === 'sucker') outcome = outcome + 1;
+    if (player_card.modifier === 'guts' && outcome > 0) outcome = outcome * 2;
+    if (player_card.modifier === 'skillful' && outcome < 0) outcome = outcome + 1;
+    if (player_card.modifier === 'rabbit') outcome = outcome * -1;
+
+    return outcome;
+  }
 }
 
-function capitalize(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
+class Utils {
+  static defer() {
+    const deferred = {
+      promise: null,
+      resolve: null,
+      reject: null
+    };
+
+    deferred.promise = new Promise((resolve, reject) => {
+      deferred.resolve = resolve;
+      deferred.reject = reject;
+    });
+
+    return deferred;
+  }
+
+  static capitalize(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  }
+
+  static getRandomItemInArray(array) {
+    return array[Math.floor(Math.random() * array.length)];
+  }
 }
 
-function nicknameGenerator() {
-  const list_1 = ['back', 'scar', 'death', 'chaos', 'fire', 'sea', 'iron', 'sand', 'coconut', 'wind', 'salt', 'vulcan', 'rock', 'boulder', 'bone', 'skull', 'soul', 'flesh'];
-  const list_2 = ['bringer', 'destroyer', 'eater', 'walker', 'king', 'puncher', 'surfer', 'climber', 'hunter', 'crusher', 'ripper'];
+class GameState {
+  constructor() {
+    this.deferred = null;
 
-  return 'The ' + capitalize(getRandomItemInArray(list_1)) + ' ' + capitalize(getRandomItemInArray(list_2));
+    window.selectCard = (card) => this.selectCard(card);
+    window.restartTournament = () => this.restartTournament();
+    window.nextFight = () => this.nextFight();
+  }
+
+  generateRandomOpponentFighter(fighting_spirit) {
+    this.current_opponent_fighter = new Fighter(null, fighting_spirit, ['slug', 'sucker', 'guts', 'skillful', 'rabbit']);
+    this.is_current_opponent_random = true;
+  }
+
+  generatePlayerFighter() {
+    this.player_fighter = new Fighter('Honu', 10, ['slug', 'sucker', 'guts', 'skillful', 'rabbit']);
+  }
+
+  startNewMatch() {
+    this.current_match_log = [];
+
+    this.generatePlayerFighter();
+    this.generateRandomOpponentFighter(this.difficulty);
+
+    Render.renderHUD(this);
+
+
+    this.gameLoop();
+  }
+
+  restartTournament() {
+    this.difficulty = 3;
+    this.current_match = 1;
+    this.startNewMatch();
+  }
+
+  nextFight() {
+    this.difficulty++;
+    this.current_match++;
+    this.startNewMatch();
+  }
+
+  async gameLoop() {
+    if (this.isMatchOver()) {
+      Render.renderWinnerInHtml(this);
+      if (this.fightOutcome() === 1) {
+        Render.renderNextFightButton(this);
+      } else {
+        Render.renderRestartTournamentButton(this);
+      }
+    } else {
+      const player_card_type = await this.getPlayerValidInput();
+      const opponent_card_type = this.getOpponentValidInput(this.current_opponent_fighter, this.current_match_log);
+
+      const player_card = this.player_fighter.cards.find(c => c.type === player_card_type);
+      const opponent_card = this.current_opponent_fighter.cards.find(c => c.type === opponent_card_type);
+
+      this.player_fighter.updateFighter(player_card, opponent_card);
+      this.current_opponent_fighter.updateFighter(opponent_card, player_card);
+
+      this.updateMatchLog(player_card, opponent_card);
+
+      Render.renderTurnOutcomeInHtml(this);
+
+      return this.gameLoop();
+    }
+  }
+
+  async getPlayerValidInput() {
+    this.deferred = Utils.defer();
+    Render.renderOptions(this);
+    return this.deferred.promise;
+  }
+
+  selectCard(card) {
+    this.deferred.resolve(card);
+  }
+
+  getOpponentValidInput(opponent_state, game_log) {
+    const available_cards = opponent_state.getAvailableCards();
+    if (opponent_state.heuristic <= 4) {
+      return Heuristics.simpletonHeuristic(available_cards);
+    } else if (opponent_state.heuristic <= 6) {
+      return Heuristics.counterLastMoveHeuristic(available_cards, game_log);
+    } else if (opponent_state.heuristic > 6) {
+      return Heuristics.alwaysUseBuffHeuristic(available_cards, game_log);
+    } else {
+      return Heuristics.randomHeuristic(available_cards);
+    }
+  }
+
+  updateMatchLog(player_card, opponent_card) {
+    this.current_match_log.push({
+      last_player_card: player_card,
+      last_opponent_card: opponent_card,
+      new_player_state: this.player,
+      new_opponent_state: this.current_opponent
+    });
+  }
+
+  isMatchOver() {
+    if (this.player_fighter.fighting_spirit <= 0) return true;
+    if (this.current_opponent_fighter.fighting_spirit <= 0) return true;
+    if (this.player_fighter.getCardsLeft() === 0) return true;
+    return false;
+  }
+
+  fightOutcome() {
+    if (this.current_opponent_fighter.fighting_spirit <= 0 && this.player_fighter.fighting_spirit > 0) return 1;
+    else if (this.player_fighter.fighting_spirit <= 0 && this.current_opponent_fighter.fighting_spirit > 0) return -1;
+    else if (this.player_fighter.getCardsLeft() <= 0) {
+      if (this.player_fighter.fighting_spirit > this.current_opponent_fighter.fighting_spirit) return 1;
+      else if (this.player_fighter.fighting_spirit < this.current_opponent_fighter.fighting_spirit) return -1;
+      else return 0;
+    }
+    else return 0;
+  }
 }
 
-function startNewGame() {
-  const opponent_player = startNewPlayer(opponentNameGenerator(), GLOBAL_DIFFICULTY, GLOBAL_MODIFIERS);
+class Render {
+  static renderHUD(game_state) {
+    Render.renderHealthBar(game_state.player_fighter, 'playerfs');
+    Render.renderHealthBar(game_state.current_opponent_fighter, 'opponentfs');
+    Render.renderOptions(game_state, 'playeroptions');
+    Render.renderMatchLog(game_state, 'gamelog');
+  }
 
-  document.getElementById('playerfs').innerHTML = GLOBAL_MAIN_PLAYER.name + ' <br> Fighting Spirit: ' + '#'.repeat(GLOBAL_MAIN_PLAYER.fighting_spirit);
-  document.getElementById('opponentfs').innerHTML = opponent_player.name + ' <br> Fighting Spirit: ' + '#'.repeat(opponent_player.fighting_spirit);
-  document.getElementById('playeroptions').innerHTML = '';
-  document.getElementById('gamelog').innerHTML = '';
+  static renderHealthBar(fighter, ui_id) {
+    const fighting_spirit = fighter.fighting_spirit > 0 ? fighter.fighting_spirit : 0;
+    document.getElementById(ui_id).innerHTML = fighter.name + ' <br> Fighting Spirit: ' + '#'.repeat(fighting_spirit);
+  }
 
-  gameLoop(GLOBAL_MAIN_PLAYER, opponent_player, []);
+  static renderMatchLog(game_state, ui_id) {
+    if (game_state.current_match_log && game_state.current_match_log.length > 0) {
+      const last_round = game_state.current_match_log.slice(-1)[0];
+      const player_name = game_state.player_fighter.name;
+      const opponent_name = game_state.current_opponent_fighter.name;
+
+      document.getElementById(ui_id).innerHTML = `
+      <br> Turn ${game_state.current_match_log.length}
+      <br> ${player_name} used ${last_round.last_player_card.name}
+      <br> ${opponent_name} used ${last_round.last_opponent_card.name}
+      <br>====================================================
+      ` + document.getElementById(ui_id).innerHTML;
+    } else {
+      document.getElementById(ui_id).innerHTML = '';
+    }
+  }
+
+  static renderOptions(game_state) {
+    const valid_cards_html = game_state.player_fighter.getAvailableCards().map((card) => {
+      return `<button onclick="selectCard('${card.type}')">${card.name} ${card.quantity ? '(' + card.quantity + ')' : ''}</button>`;
+    });
+
+    document.getElementById('playeroptions').innerHTML = valid_cards_html.join('<br>');
+  }
+
+  static renderWinnerInHtml(game_state) {
+    const player_name = game_state.player_fighter.name;
+    const opponent_name = game_state.current_opponent_fighter.name;
+    const fight_outcome = game_state.fightOutcome();
+    let result = '';
+    switch (fight_outcome) {
+      case 1:
+        result = player_name + ' wins!';
+        break;
+      case -1:
+        result = opponent_name + ' wins!';
+        break;
+      default:
+        result = 'Draw!';
+        break;
+    }
+
+    document.getElementById('gamelog').innerHTML = `
+    <br> RESULT ${result.toUpperCase()}
+    <br>====================================================
+    ` + document.getElementById('gamelog').innerHTML;
+  }
+
+  static renderTurnOutcomeInHtml(game_state) {
+    Render.renderHealthBar(game_state.player_fighter, 'playerfs');
+    Render.renderHealthBar(game_state.current_opponent_fighter, 'opponentfs');
+
+    Render.renderMatchLog(game_state, 'gamelog')
+  }
+
+  static renderNextFightButton() {
+    document.getElementById('playeroptions').innerHTML = `<button onclick="nextFight()">Next Fight</button>`;
+  }
+
+  static renderRestartTournamentButton() {
+    document.getElementById('playeroptions').innerHTML = `<button onclick="restartTournament()">Restart Tournament</button>`;
+  }
 }
 
-var GLOBAL_PROMISE;
-var GLOBAL_DIFFICULTY = 3;
-var GLOBAL_MODIFIERS = 0;
-var GLOBAL_MAIN_PLAYER = startNewPlayer('Honu', 10, GLOBAL_MODIFIERS);
-startNewGame();
+class Heuristics {
+  static simpletonHeuristic(available_cards) {
+    return available_cards[0].type;
+  }
+
+  static counterLastMoveHeuristic(available_cards, game_log) {
+    if (game_log.length > 0) {
+      const last_turn = game_log.slice(-1)[0];
+      const last_turn_player_move = last_turn.last_player_card.type;
+      switch (last_turn_player_move) {
+        case 'jab':
+          const has_straight = available_cards.find(c => c.type === 'straight');
+          if (has_straight) return has_straight.type;
+          else return Utils.getRandomItemInArray(available_cards).type;
+        case 'straight':
+          const has_hook = available_cards.find(c => c.type === 'hook');
+          if (has_hook) return has_hook.type;
+          else return Utils.getRandomItemInArray(available_cards).type;
+        case 'hook':
+          const has_jab = available_cards.find(c => c.type === 'jab');
+          if (has_jab) return has_jab.type;
+          else return Utils.getRandomItemInArray(available_cards).type;
+        default:
+          return Utils.getRandomItemInArray(available_cards).type;
+      }
+    } else {
+      return Utils.getRandomItemInArray(available_cards).type;
+    }
+  }
+
+  static alwaysUseBuffHeuristic(available_cards, game_log) {
+    const has_card_with_modifier = available_cards.find(c => c.modifier);
+    return has_card_with_modifier ? has_card_with_modifier.type : Heuristics.counterLastMoveHeuristic(available_cards, game_log);
+  }
+
+  static randomHeuristic(available_cards) {
+    return Utils.getRandomItemInArray(available_cards).type;
+  }
+}
+
+const game_state = new GameState();
+
+game_state.restartTournament();
+
